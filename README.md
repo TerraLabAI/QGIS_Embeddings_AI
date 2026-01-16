@@ -8,7 +8,7 @@ A QGIS plugin for geospatial similarity search using foundation model embeddings
 
 ![Screenshot](docs/screenshot.png)
 
-![UI](docs/screenshot_ui.png)
+<img src="docs/screenshot_ui.png" width="300">
 
 ---
 
@@ -53,9 +53,13 @@ Copy this folder to your QGIS plugins directory:
 5. Click "Search Similarity"
 6. Export results with "Export Results" button
 
-## Author
+## Authors
 
 **Lilien Auger** — [LinkedIn](https://www.linkedin.com/in/lilien-auger/)
+
+**Yvann Barbot** — [LinkedIn](https://www.linkedin.com/in/yvann-barbot/)
+
+**Stéphane Barbot** — [LinkedIn](https://www.linkedin.com/in/stephane-barbot/)
 
 ## License
 
