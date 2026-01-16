@@ -1,0 +1,25 @@
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# IDE
+.vscode/
+.idea/
+*.sublime-*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Reference plugins (not part of this project)
+QGIS Plugin References/
+
+# Logs
+*.log
+
+# Temporary files
+*.tmp
+*.temp
+.cache/
