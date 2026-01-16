@@ -1,23 +1,31 @@
 [general]
-name=AlphaEarth
+name=QGIS Embeddings AI
 qgisMinimumVersion=3.28
 
-description=Geospatial similarity search using AlphaEarth embeddings from Google Earth Engine
+description=Unlock geospatial foundation models for advanced AI-powered analysis in QGIS
 
 version=0.1.0
 
 author=Lilien Auger
 email=lilienauger86@gmail.com
 
-about=AlphaEarth: A Google DeepMind foundation model trained on a petabyte-scale of geospatial data.
-    Use it to discover similar features across the globe through AI-driven similarity search.
+about=QGIS Embeddings AI brings the power of geospatial foundation models to QGIS.
+    Foundation models are AI systems pre-trained on massive geospatial datasets that encode
+    Earth observations into vector embeddings - compact mathematical representations capturing
+    spatial, temporal, and semantic patterns.
+    
+    Currently supports AlphaEarth (Google DeepMind) with more foundation models coming soon.
+    
+    CAPABILITIES:
+    - Similarity search across global imagery
+    - Zero-shot classification and segmentation
+    - Multi-modal analysis (optical, radar, elevation, climate)
+    - Text-to-map queries via semantic embeddings
     
     REQUIREMENTS:
-    - Install the 'Google Earth Engine' plugin from the QGIS Plugin Manager
-    - Enable the plugin and authenticate with your Google account
+    - Install the 'Google Earth Engine' plugin from QGIS Plugin Manager
+    - Authenticate with your Google account
     - Connect your Google Cloud Project with Earth Engine API enabled
-    
-    The plugin will not function without a properly configured Google Earth Engine connection.
 
 tracker=https://github.com/Lilien86/Lilien_QGIS_Alpha-Earth/issues
 repository=https://github.com/Lilien86/Lilien_QGIS_Alpha-Earth
