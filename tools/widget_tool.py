@@ -894,7 +894,7 @@ class SimilaritySearchWidget(QDockWidget):
             return
         
         # Create export dialog
-        from qgis.PyQt.QtWidgets import QDialog, QVBoxLayout, QDialogButtonBox, QComboBox, QLabel, QFileDialog
+        from qgis.PyQt.QtWidgets import QDialog, QVBoxLayout, QDialogButtonBox, QLabel
         
         dialog = QDialog(self)
         dialog.setWindowTitle("Export Similarity Results")
@@ -903,22 +903,10 @@ class SimilaritySearchWidget(QDockWidget):
         
         # Info label
         info_text = f"Export results for: {self.last_search_name}\n"
-        info_text += f"Buffer: {self.last_search_params['buffer_km']} km, Resolution: {self.last_search_params['resolution']} m"
+        info_text += f"Buffer: {self.last_search_params['buffer_km']} km, Resolution: {self.last_search_params['resolution']} m\n\n"
+        info_text += "Format: GeoTIFF (with colors preserved)"
         info_label = QLabel(info_text)
         layout.addWidget(info_label)
-        
-        # Format selector
-        layout.addWidget(QLabel("\nExport Format:"))
-        format_combo = QComboBox()
-        format_combo.addItem("GeoTIFF (Recommended - Full Quality)", "geotiff")
-        format_combo.addItem("Cloud Optimized GeoTIFF (Web-Friendly)", "cog")
-        format_combo.addItem("PNG + World File (Lightweight)", "png")
-        layout.addWidget(format_combo)
-        
-        # Description
-        desc_label = QLabel("GeoTIFF: Industry standard, compatible with all GIS software")
-        desc_label.setStyleSheet("color: #888; font-size: 11px;")
-        layout.addWidget(desc_label)
         
         # Buttons
         buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
@@ -927,8 +915,7 @@ class SimilaritySearchWidget(QDockWidget):
         layout.addWidget(buttons)
         
         if dialog.exec_() == QDialog.Accepted:
-            export_format = format_combo.currentData()
-            self._export_to_file(export_format)
+            self._export_to_file('geotiff')
     
     def _export_to_file(self, export_format):
         """Export results to file with format choice."""

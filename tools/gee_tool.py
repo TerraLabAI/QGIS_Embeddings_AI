@@ -43,7 +43,14 @@ class GEESimilaritySearch:
         
         if geom_type == 'point':
             reference_geom = ee.Geometry.Point([geom_data['lon'], geom_data['lat']])
-            search_area = reference_geom.buffer(buffer_km * 1000)
+            # Use square bounding box instead of circular buffer
+            buffer_degrees = buffer_km / 111.0  # Approximate km to degrees
+            search_area = ee.Geometry.Rectangle([
+                geom_data['lon'] - buffer_degrees,
+                geom_data['lat'] - buffer_degrees,
+                geom_data['lon'] + buffer_degrees,
+                geom_data['lat'] + buffer_degrees
+            ])
         elif geom_type == 'bbox':
             reference_geom = ee.Geometry.Rectangle([
                 geom_data['min_lon'], geom_data['min_lat'],
@@ -148,19 +155,14 @@ def export_gee_image_to_file(ee_image, geometry, file_path, scale, vis_params, c
         import ee as _ee
         ee = _ee
     
-    # Apply visualization parameters with custom palette
+    # Apply visualization with colors for export
     vis_params_copy = vis_params.copy()
     if color_palette:
         vis_params_copy['palette'] = color_palette
     
-    # For PNG, visualize first
-    if export_format == 'png':
-        image_to_export = ee_image.visualize(**vis_params_copy)
-        file_format = 'PNG'
-    else:
-        # For GeoTIFF, export raw data
-        image_to_export = ee_image
-        file_format = 'GeoTIFF'
+    # Always visualize to preserve colors in export
+    image_to_export = ee_image.visualize(**vis_params_copy)
+    file_format = 'GeoTIFF'
     
     # Clip to geometry and get download URL
     try:
