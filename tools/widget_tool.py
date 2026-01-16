@@ -1030,24 +1030,29 @@ class SimilaritySearchWidget(QDockWidget):
                 # Get colors from last search params
                 colors = self.last_search_params.get('color_palette', ['#00FF00', '#FFFF00', '#FF0000'])
                 
-                # Get actual min/max from the raster
-                stats = layer.dataProvider().bandStatistics(1)
-                min_val = stats.minimumValue
-                max_val = stats.maximumValue
+                # Use the SAME threshold as the streaming visualization
+                # This ensures exported colors match the preview
+                threshold = self.last_search_params.get('threshold', 0.5)
+                if 'threshold' not in self.last_search_params:
+                    # Fallback to spin_threshold if available
+                    threshold = self.spin_threshold.value()
                 
-                print(f"Raster values: min={min_val}, max={max_val}")
+                min_val = 0.0  # Always start at 0 (perfect similarity)
+                max_val = threshold  # Use threshold as max (different/dissimilar)
+                
+                print(f"Using color range: 0.0 to {max_val} (same as streaming visualization)")
                 
                 # Create color ramp shader
                 shader = QgsRasterShader()
                 ramp_shader = QgsColorRampShader()
                 ramp_shader.setColorRampType(QgsColorRampShader.Interpolated)
                 
-                # Create color ramp items based on actual data range
-                mid_val = (min_val + max_val) / 2
+                # Create color ramp items - SAME as streaming
+                mid_val = max_val / 2
                 items = [
-                    QgsColorRampShader.ColorRampItem(min_val, QColor(colors[0]), 'Similar'),
-                    QgsColorRampShader.ColorRampItem(mid_val, QColor(colors[1]), 'Medium'),
-                    QgsColorRampShader.ColorRampItem(max_val, QColor(colors[2]), 'Different')
+                    QgsColorRampShader.ColorRampItem(min_val, QColor(colors[0]), 'Similar (0)'),
+                    QgsColorRampShader.ColorRampItem(mid_val, QColor(colors[1]), f'Medium ({mid_val:.2f})'),
+                    QgsColorRampShader.ColorRampItem(max_val, QColor(colors[2]), f'Different ({max_val:.2f})')
                 ]
                 ramp_shader.setColorRampItemList(items)
                 shader.setRasterShaderFunction(ramp_shader)
