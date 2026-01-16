@@ -155,13 +155,10 @@ def export_gee_image_to_file(ee_image, geometry, file_path, scale, vis_params, c
         import ee as _ee
         ee = _ee
     
-    # Apply visualization with colors for export
-    vis_params_copy = vis_params.copy()
-    if color_palette:
-        vis_params_copy['palette'] = color_palette
-    
-    # Always visualize to preserve colors in export
-    image_to_export = ee_image.visualize(**vis_params_copy)
+    # Export RAW similarity values (not visualized)
+    # This preserves the original 0-threshold range for proper coloring in QGIS
+    # Visualization will be applied by QGIS using color ramp
+    image_to_export = ee_image  # Raw data, not visualized
     file_format = 'GeoTIFF'
     
     # Clip to geometry and get download URL

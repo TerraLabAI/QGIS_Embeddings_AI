@@ -1022,7 +1022,7 @@ class SimilaritySearchWidget(QDockWidget):
         if layer.isValid():
             print(f"Layer loaded: {layer.bandCount()} bands")
             
-            # If single-band grayscale, apply color ramp (GEE exported as grayscale)
+            # If single-band grayscale, apply color ramp to match streaming visualization
             if layer.bandCount() == 1:
                 print("Applying color ramp to single-band raster")
                 from qgis.core import QgsColorRampShader, QgsRasterShader, QgsSingleBandPseudoColorRenderer
@@ -1030,48 +1030,35 @@ class SimilaritySearchWidget(QDockWidget):
                 # Get colors from last search params
                 colors = self.last_search_params.get('color_palette', ['#00FF00', '#FFFF00', '#FF0000'])
                 
-                # Use the SAME threshold as the streaming visualization
-                # This ensures exported colors match the preview
-                threshold = self.last_search_params.get('threshold', 0.5)
-                if 'threshold' not in self.last_search_params:
-                    # Fallback to spin_threshold if available
-                    threshold = self.spin_threshold.value()
+                # Use the SAME range as streaming: 0 to threshold
+                threshold = self.spin_threshold.value()
+                min_val = 0.0
+                max_val = threshold
+                mid_val = max_val / 2
                 
-                min_val = 0.0  # Always start at 0 (perfect similarity)
-                max_val = threshold  # Use threshold as max (different/dissimilar)
-                
-                print(f"Using color range: 0.0 to {max_val} (same as streaming visualization)")
+                print(f"Using color range: 0.0 to {max_val} (same as streaming)")
                 
                 # Create color ramp shader
                 shader = QgsRasterShader()
                 ramp_shader = QgsColorRampShader()
                 ramp_shader.setColorRampType(QgsColorRampShader.Interpolated)
                 
-                # Create color ramp items - SAME as streaming
-                mid_val = max_val / 2
                 items = [
-                    QgsColorRampShader.ColorRampItem(min_val, QColor(colors[0]), 'Similar (0)'),
-                    QgsColorRampShader.ColorRampItem(mid_val, QColor(colors[1]), f'Medium ({mid_val:.2f})'),
-                    QgsColorRampShader.ColorRampItem(max_val, QColor(colors[2]), f'Different ({max_val:.2f})')
+                    QgsColorRampShader.ColorRampItem(min_val, QColor(colors[0]), 'Similar'),
+                    QgsColorRampShader.ColorRampItem(mid_val, QColor(colors[1]), 'Medium'),
+                    QgsColorRampShader.ColorRampItem(max_val, QColor(colors[2]), 'Different')
                 ]
                 ramp_shader.setColorRampItemList(items)
                 shader.setRasterShaderFunction(ramp_shader)
                 
-                # Apply renderer
                 renderer = QgsSingleBandPseudoColorRenderer(layer.dataProvider(), 1, shader)
                 layer.setRenderer(renderer)
                 layer.triggerRepaint()
                 print("Color ramp applied successfully")
-            else:
-                print(f"Multi-band raster ({layer.bandCount()} bands), using default rendering")
             
             QgsProject.instance().addMapLayer(layer)
-            
-            # Zoom to layer with appropriate scale (not too zoomed in)
             self.canvas.setExtent(layer.extent())
-            self.canvas.zoomScale(50000)  # Fixed scale for consistent zoom
             self.canvas.refresh()
-            
             self._set_status(f"Loaded: {layer_name}")
             print(f"Successfully loaded layer: {layer_name}")
         else:
