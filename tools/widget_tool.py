@@ -1,4 +1,4 @@
-"""Main widget for AlphaEarth plugin - Similarity Search Dock."""
+"""Main widget for QGIS Embeddings AI plugin - Similarity Search Dock."""
 
 from qgis.PyQt.QtCore import Qt
 from qgis.PyQt.QtWidgets import (
@@ -48,7 +48,7 @@ class GeometryItem(QListWidgetItem):
 
 
 class SimilaritySearchWidget(QDockWidget):
-    """Dockable panel for AlphaEarth similarity search."""
+    """Dockable panel for QGIS Embeddings AI similarity search."""
 
     STYLE_TOOL_NORMAL = """
         QPushButton {
@@ -93,7 +93,7 @@ class SimilaritySearchWidget(QDockWidget):
     YEAR_MAX = 2023
 
     def __init__(self, iface, plugin_dir, parent=None):
-        super().__init__("AlphaEarth Tool", parent)
+        super().__init__("QGIS Embeddings AI", parent)
         self.iface = iface
         self.plugin_dir = plugin_dir
         self.canvas = iface.mapCanvas()
@@ -137,7 +137,7 @@ class SimilaritySearchWidget(QDockWidget):
         search_layout = QVBoxLayout(search_tab)
         search_layout.setSpacing(12)
         search_layout.setContentsMargins(8, 8, 8, 8)
-        self.tab_widget.addTab(search_tab, "Search")
+        self.tab_widget.addTab(search_tab, "Similarity Search")
         
         # Basemap
         basemap_group = QGroupBox("Basemap")
@@ -184,19 +184,13 @@ class SimilaritySearchWidget(QDockWidget):
         
         search_layout.addWidget(prompts_frame)
         
-        # Geometries List
-        list_group = QGroupBox("Geometries")
-        list_layout = QVBoxLayout(list_group)
+        # Geometries List (hidden but functional)
         self.list_geometries = QListWidget()
         self.list_geometries.setSelectionMode(QAbstractItemView.ExtendedSelection)
-        self.list_geometries.setMinimumHeight(100)
-        self.list_geometries.setMaximumHeight(150)
         self.list_geometries.itemChanged.connect(self._on_geometry_renamed)
-        list_layout.addWidget(self.list_geometries)
+        self.list_geometries.hide()
         self.btn_remove = QPushButton("Remove Selected")
-        self.btn_remove.clicked.connect(self._on_remove_clicked)
-        list_layout.addWidget(self.btn_remove)
-        search_layout.addWidget(list_group)
+        self.btn_remove.hide()
         
         # Run Button
         self.btn_run = QPushButton("Search Similarity")
@@ -264,10 +258,9 @@ class SimilaritySearchWidget(QDockWidget):
             styles_layout.addLayout(row)
         search_layout.addWidget(styles_group)
         
+        # Toggle button removed per user request
         self.btn_toggle_similarity = QPushButton("Show Similarity Only")
-        self.btn_toggle_similarity.setCheckable(True)
-        self.btn_toggle_similarity.clicked.connect(self._on_toggle_similarity_clicked)
-        search_layout.addWidget(self.btn_toggle_similarity)
+        self.btn_toggle_similarity.hide()
         search_layout.addStretch()
         
         # === EXTRACT TAB (hidden) ===
@@ -354,9 +347,9 @@ class SimilaritySearchWidget(QDockWidget):
                     self._set_status(f"Added {basemap_info['name']}")
                     return
             
-            self.iface.messageBar().pushWarning("AlphaEarth", "Could not load basemap.")
+            self.iface.messageBar().pushWarning("QGIS Embeddings AI", "Could not load basemap.")
         except Exception as e:
-            self.iface.messageBar().pushCritical("AlphaEarth", f"Basemap error: {str(e)}")
+            self.iface.messageBar().pushCritical("QGIS Embeddings AI", f"Basemap error: {str(e)}")
     
     def _create_preview_layer(self, geom_type, geom_data, name):
         """Create preview layer for geometry."""
@@ -504,7 +497,7 @@ class SimilaritySearchWidget(QDockWidget):
         self.btn_pick_color.setChecked(False)
         self._deactivate_tool()
         self._set_status(f"Picked color: {color.name()}")
-        self.iface.messageBar().pushInfo("AlphaEarth", f"Color picked: {color.name()}")
+        self.iface.messageBar().pushInfo("QGIS Embeddings AI", f"Color picked: {color.name()}")
     
     def _get_next_name(self, geom_type):
         """Get next available name for geometry type."""
@@ -584,7 +577,7 @@ class SimilaritySearchWidget(QDockWidget):
     def _on_run_clicked(self):
         """Run similarity search for all geometries."""
         if self.list_geometries.count() == 0:
-            self.iface.messageBar().pushWarning("AlphaEarth", "Please add at least one geometry.")
+            self.iface.messageBar().pushWarning("QGIS Embeddings AI", "Please add at least one geometry.")
             return
         
         buffer_km = self.spin_buffer.value()
@@ -633,7 +626,7 @@ class SimilaritySearchWidget(QDockWidget):
             self._set_status(f"Search completed ({len(items_to_process)} geometries)")
             
         except Exception as e:
-            self.iface.messageBar().pushCritical("AlphaEarth", f"Error: {str(e)}")
+            self.iface.messageBar().pushCritical("QGIS Embeddings AI", f"Error: {str(e)}")
             self._set_status(f"Error: {str(e)}")
             self.btn_run.setEnabled(True)
     
@@ -645,7 +638,8 @@ class SimilaritySearchWidget(QDockWidget):
             
             Map.centerObject(result['search_area'], 12)
             
-            Map.addLayer(result['search_area'], {'color': 'red'}, f"[{geom_name}] Search Zone", True, 0.3)
+            # Search Zone layer removed per user request
+            # Map.addLayer(result['search_area'], {'color': 'red'}, f"[{geom_name}] Search Zone", True, 0.3)
             Map.addLayer(result['reference_geom'], {'color': '#7a9bb8'}, f"[{geom_name}] Reference", True, 1.0)
             
             optimized_similarity = result['similarity_image'].reproject(crs='EPSG:4326', scale=resolution)
@@ -716,13 +710,13 @@ class SimilaritySearchWidget(QDockWidget):
             if not layer_id:
                 self._refresh_similarity_layers()
                 if self.combo_similarity_layer.count() == 0 or "No similarity" in self.combo_similarity_layer.currentText():
-                    self.iface.messageBar().pushWarning("AlphaEarth", "No similarity layers found. Run a search first.")
+                    self.iface.messageBar().pushWarning("QGIS Embeddings AI", "No similarity layers found. Run a search first.")
                     return
                 layer_id = self.combo_similarity_layer.currentData()
             
             layer = QgsProject.instance().mapLayer(layer_id)
             if not layer or not layer.isValid():
-                self.iface.messageBar().pushWarning("AlphaEarth", "Selected layer is not valid.")
+                self.iface.messageBar().pushWarning("QGIS Embeddings AI", "Selected layer is not valid.")
                 return
             
             target_color = self.color_extract.color()
@@ -831,17 +825,17 @@ class SimilaritySearchWidget(QDockWidget):
                     
                     QgsProject.instance().addMapLayer(vlayer)
                     self._set_status(f"Created polygons from {matched_pixels} pixels")
-                    self.iface.messageBar().pushSuccess("AlphaEarth", "Extraction complete!")
+                    self.iface.messageBar().pushSuccess("QGIS Embeddings AI", "Extraction complete!")
                 else:
                     self._set_status("Error loading vector result")
             else:
                 self._set_status("Polygonize failed")
                 
         except Exception as e:
-            self.iface.messageBar().pushCritical("AlphaEarth", f"Error extracting polygons: {str(e)}")
+            self.iface.messageBar().pushCritical("QGIS Embeddings AI", f"Error extracting polygons: {str(e)}")
             self._set_status(f"Error: {str(e)}")
             import traceback
-            QgsMessageLog.logMessage(traceback.format_exc(), "AlphaEarth", Qgis.Critical)
+            QgsMessageLog.logMessage(traceback.format_exc(), "QGIS Embeddings AI", Qgis.Critical)
     
     def closeEvent(self, event):
         self._deactivate_tool()
