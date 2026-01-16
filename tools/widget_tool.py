@@ -218,6 +218,7 @@ class SimilaritySearchWidget(QDockWidget):
         self.spin_buffer = QDoubleSpinBox()
         self.spin_buffer.setRange(0.5, 100.0)
         self.spin_buffer.setValue(5.0)
+        self.spin_buffer.setSingleStep(0.1)  # More precise increments
         buffer_row.addWidget(self.spin_buffer)
         params_layout.addLayout(buffer_row)
         
@@ -513,6 +514,12 @@ class SimilaritySearchWidget(QDockWidget):
         self.list_geometries.addItem(item)
         self.btn_run.setEnabled(True)
         self._set_status(f"Added: {name} ({lon:.4f}, {lat:.4f})")
+        
+        # Auto-deactivate the Add Point button after adding a point
+        if self.btn_point.isChecked():
+            self.btn_point.setChecked(False)
+            self.btn_point.setStyleSheet(self.STYLE_TOOL_NORMAL)
+            self._deactivate_tool()
     
     def _on_bbox_added(self, min_lon, min_lat, max_lon, max_lat):
         name = self._get_next_name('bbox')
