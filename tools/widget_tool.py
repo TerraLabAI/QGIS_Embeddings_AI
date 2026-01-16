@@ -6,7 +6,8 @@ from qgis.PyQt.QtWidgets import (
     QDoubleSpinBox, QListWidget, QListWidgetItem, QComboBox, QAbstractItemView,
     QTabWidget, QFrame, QSlider, QSpinBox, QScrollArea, QToolButton,
 )
-from qgis.PyQt.QtGui import QFont, QColor
+from qgis.PyQt.QtGui import QFont, QColor, QPixmap
+import os
 from qgis.core import (
     QgsProject, QgsVectorLayer, QgsFeature, QgsGeometry, QgsPointXY,
     QgsSingleSymbolRenderer, QgsMarkerSymbol, QgsFillSymbol, QgsRasterLayer,
@@ -154,6 +155,16 @@ class SimilaritySearchWidget(QDockWidget):
         header_layout = QVBoxLayout()
         header_layout.setSpacing(10)
         
+        # Logo
+        logo_label = QLabel()
+        logo_path = os.path.join(self.plugin_dir, 'icons', 'terralab_logo.png')
+        if os.path.exists(logo_path):
+            pixmap = QPixmap(logo_path)
+            scaled_pixmap = pixmap.scaledToHeight(60, Qt.SmoothTransformation)
+            logo_label.setPixmap(scaled_pixmap)
+            logo_label.setAlignment(Qt.AlignCenter)
+            header_layout.addWidget(logo_label)
+            
         self.btn_add_basemap = QPushButton("🌍 Import Basemap")
         self.btn_add_basemap.setStyleSheet(self.STYLE_TOOL_NORMAL)
         self.btn_add_basemap.setCursor(Qt.PointingHandCursor)
