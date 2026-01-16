@@ -52,48 +52,69 @@ class SimilaritySearchWidget(QDockWidget):
 
     STYLE_TOOL_NORMAL = """
         QPushButton {
-            background-color: #4a4a4a; color: #e0e0e0;
-            padding: 8px 12px; border-radius: 4px;
-            border: 1px solid #5a5a5a; min-width: 60px;
+            background-color: #3B3B3B; 
+            color: #E0E0E0;
+            padding: 12px; 
+            border-radius: 6px;
+            border: 1px solid #505050; 
+            font-weight: 500;
         }
-        QPushButton:hover { background-color: #5a5a5a; }
+        QPushButton:hover { 
+            background-color: #4A4A4A; 
+            border-color: #606060;
+        }
     """
     
     STYLE_TOOL_ACTIVE = """
         QPushButton {
-            background-color: #5c7a99; color: white; font-weight: bold;
-            padding: 8px 12px; border-radius: 4px;
-            border: 2px solid #7a9bb8; min-width: 60px;
+            background-color: #2D6B9F; 
+            color: white; 
+            padding: 12px; 
+            border-radius: 6px;
+            border: 1px solid #4083C0; 
+            font-weight: bold;
         }
-        QPushButton:hover { background-color: #6d8aa8; }
+        QPushButton:hover { background-color: #3D7BAF; }
     """
     
     STYLE_ACTION_PRIMARY = """
         QPushButton {
-            background-color: #6b89a8; color: white; font-weight: bold;
-            padding: 10px; border-radius: 4px;
+            background-color: #2D6B9F; 
+            color: white; 
+            font-weight: bold;
+            font-size: 14px;
+            padding: 15px; 
+            border-radius: 8px;
+            margin-top: 10px;
         }
-        QPushButton:hover { background-color: #7a9bb8; }
-        QPushButton:disabled { background-color: #3a3a3a; color: #888888; }
+        QPushButton:hover { background-color: #3D7BAF; }
+        QPushButton:disabled { background-color: #333333; color: #666666; border: 1px solid #444444; }
     """
     
-    STYLE_BASEMAP_BTN = """
+    STYLE_SECONDARY_BTN = """
         QPushButton {
-            background-color: #5a6a7a; color: white; font-weight: bold;
-            padding: 8px; border-radius: 4px;
+            background-color: transparent; 
+            color: #AAAAAA; 
+            border: 1px solid #555555;
+            padding: 8px 15px; 
+            border-radius: 4px;
         }
-        QPushButton:hover { background-color: #6a7a8a; }
+        QPushButton:hover { 
+            background-color: #333333; 
+            color: #FFFFFF;
+            border-color: #777777;
+        }
     """
     
-    PREVIEW_COLOR_POINT = "#7a9bb8"
-    PREVIEW_COLOR_BBOX = "#8a9aa8"
-    PREVIEW_COLOR_POLYGON = "#6a8a9a"
+    PREVIEW_COLOR_POINT = "#4FC3F7"
+    PREVIEW_COLOR_BBOX = "#FFB74D"
+    PREVIEW_COLOR_POLYGON = "#AED581"
     
     YEAR_MIN = 2017
     YEAR_MAX = 2023
 
     def __init__(self, iface, plugin_dir, parent=None):
-        super().__init__("AlphaEarth Tool", parent)
+        super().__init__("QGIS Embeddings AI", parent)
         self.iface = iface
         self.plugin_dir = plugin_dir
         self.canvas = iface.mapCanvas()
@@ -109,231 +130,211 @@ class SimilaritySearchWidget(QDockWidget):
         self.polygon_tool = None
         
         self.setAllowedAreas(Qt.LeftDockWidgetArea | Qt.RightDockWidgetArea)
-        self.setMinimumWidth(320)
+        self.setMinimumWidth(380)
         
         self._setup_ui()
         QgsProject.instance().layerWillBeRemoved.connect(self._on_layer_removed_from_qgis)
     
     def _setup_ui(self):
-        """Build the user interface."""
+        """Build the modern, responsive user interface."""
+        # Main container with scroll
         scroll_area = QScrollArea()
         scroll_area.setWidgetResizable(True)
-        scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
-        scroll_area.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+        scroll_area.setFrameShape(QFrame.NoFrame)
         self.setWidget(scroll_area)
         
         content_widget = QWidget()
         scroll_area.setWidget(content_widget)
         
         main_layout = QVBoxLayout(content_widget)
-        main_layout.setSpacing(10)
-        main_layout.setContentsMargins(10, 10, 10, 10)
+        main_layout.setSpacing(20)
+        main_layout.setContentsMargins(20, 20, 20, 20)
         
-        self.tab_widget = QTabWidget()
-        main_layout.addWidget(self.tab_widget)
+        # --- HEADER SECTION ---
+        header_layout = QVBoxLayout()
+        header_layout.setSpacing(10)
         
-        # === SEARCH TAB ===
-        search_tab = QWidget()
-        search_layout = QVBoxLayout(search_tab)
-        search_layout.setSpacing(12)
-        search_layout.setContentsMargins(8, 8, 8, 8)
-        self.tab_widget.addTab(search_tab, "Search")
-        
-        # Basemap
-        basemap_group = QGroupBox("Basemap")
-        basemap_layout = QHBoxLayout(basemap_group)
-        self.btn_add_basemap = QPushButton("Import Map")
-        self.btn_add_basemap.setStyleSheet(self.STYLE_BASEMAP_BTN)
-        self.btn_add_basemap.setToolTip("Import Google Satellite as reference")
+        self.btn_add_basemap = QPushButton("🌍 Import Basemap")
+        self.btn_add_basemap.setStyleSheet(self.STYLE_TOOL_NORMAL)
+        self.btn_add_basemap.setCursor(Qt.PointingHandCursor)
         self.btn_add_basemap.clicked.connect(self._on_add_basemap_clicked)
-        basemap_layout.addWidget(self.btn_add_basemap)
-        search_layout.addWidget(basemap_group)
+        header_layout.addWidget(self.btn_add_basemap)
         
-        # Tools
-        prompts_frame = QFrame()
-        prompts_frame.setFrameStyle(QFrame.StyledPanel)
-        prompts_layout = QVBoxLayout(prompts_frame)
-        prompts_layout.setSpacing(8)
+        main_layout.addLayout(header_layout)
         
-        tools_row = QHBoxLayout()
-        self.btn_point = QPushButton("Add Point")
+        # --- GEOMETRY TOOL SECTION ---
+        tools_group = QGroupBox("REFERENCE GEOMETRY")
+        tools_group.setStyleSheet("QGroupBox { font-weight: bold; color: #BBBBBB; margin-top: 10px; }")
+        tools_layout = QVBoxLayout(tools_group)
+        tools_layout.setSpacing(15)
+        
+        # Main Tool Button
+        self.btn_point = QPushButton("📍 Add Reference Point")
         self.btn_point.setCheckable(True)
+        self.btn_point.setCursor(Qt.PointingHandCursor)
         self.btn_point.setStyleSheet(self.STYLE_TOOL_NORMAL)
-        self.btn_point.setToolTip("Click on map to add a reference point")
+        self.btn_point.setMinimumHeight(50)
         self.btn_point.clicked.connect(lambda: self._on_tool_clicked('point'))
-        tools_row.addWidget(self.btn_point)
-        tools_row.addStretch()
-        prompts_layout.addLayout(tools_row)
+        tools_layout.addWidget(self.btn_point)
         
-        # Hidden buttons for compatibility
+        # Hidden legacy buttons
         self.btn_bbox = QPushButton()
-        self.btn_bbox.setCheckable(True)
         self.btn_bbox.hide()
         self.btn_polygon = QPushButton()
-        self.btn_polygon.setCheckable(True)
         self.btn_polygon.hide()
         
-        actions_row = QHBoxLayout()
-        self.btn_clear = QPushButton("Clear")
-        self.btn_clear.clicked.connect(self._on_clear_clicked)
-        actions_row.addWidget(self.btn_clear)
-        self.btn_undo = QPushButton("Undo")
-        self.btn_undo.clicked.connect(self._on_undo_clicked)
-        actions_row.addWidget(self.btn_undo)
-        prompts_layout.addLayout(actions_row)
+        # List & Actions
+        list_frame = QFrame()
+        list_frame.setStyleSheet("background-color: #2B2B2B; border-radius: 6px;")
+        list_layout = QVBoxLayout(list_frame)
+        list_layout.setContentsMargins(5, 5, 5, 5)
         
-        search_layout.addWidget(prompts_frame)
-        
-        # Geometries List
-        list_group = QGroupBox("Geometries")
-        list_layout = QVBoxLayout(list_group)
         self.list_geometries = QListWidget()
         self.list_geometries.setSelectionMode(QAbstractItemView.ExtendedSelection)
-        self.list_geometries.setMinimumHeight(100)
-        self.list_geometries.setMaximumHeight(150)
+        self.list_geometries.setMinimumHeight(80)
+        self.list_geometries.setMaximumHeight(120)
+        self.list_geometries.setStyleSheet("border: none; background: transparent; font-size: 13px;")
         self.list_geometries.itemChanged.connect(self._on_geometry_renamed)
         list_layout.addWidget(self.list_geometries)
-        self.btn_remove = QPushButton("Remove Selected")
+        
+        tools_layout.addWidget(list_frame)
+        
+        # Action Buttons Row
+        actions_row = QHBoxLayout()
+        self.btn_remove = QPushButton("Remove")
+        self.btn_remove.setStyleSheet(self.STYLE_SECONDARY_BTN)
         self.btn_remove.clicked.connect(self._on_remove_clicked)
-        list_layout.addWidget(self.btn_remove)
-        search_layout.addWidget(list_group)
         
-        # Run Button
-        self.btn_run = QPushButton("Search Similarity")
-        self.btn_run.setEnabled(False)
-        self.btn_run.setStyleSheet(self.STYLE_ACTION_PRIMARY)
-        self.btn_run.setMinimumHeight(40)
-        self.btn_run.clicked.connect(self._on_run_clicked)
-        search_layout.addWidget(self.btn_run)
+        self.btn_clear = QPushButton("Clear All")
+        self.btn_clear.setStyleSheet(self.STYLE_SECONDARY_BTN)
+        self.btn_clear.clicked.connect(self._on_clear_clicked)
         
-        # Parameters
-        params_group = QGroupBox("Parameters")
+        actions_row.addWidget(self.btn_remove)
+        actions_row.addStretch()
+        actions_row.addWidget(self.btn_clear)
+        tools_layout.addLayout(actions_row)
+        
+        main_layout.addWidget(tools_group)
+        
+        # --- PARAMETERS SECTION ---
+        params_group = QGroupBox("SEARCH PARAMETERS")
+        params_group.setStyleSheet("QGroupBox { font-weight: bold; color: #BBBBBB; margin-top: 10px; }")
         params_layout = QVBoxLayout(params_group)
+        params_layout.setSpacing(15)
         
-        year_row = QHBoxLayout()
-        year_row.addWidget(QLabel("Year:"))
+        # Grid for params
+        grid_params = QVBoxLayout()
+        grid_params.setSpacing(12)
+        
+        # Year
+        row_year = QHBoxLayout()
+        lbl_year = QLabel("Year")
+        lbl_year.setStyleSheet("color: #E0E0E0;")
         self.spin_year = QSpinBox()
         self.spin_year.setRange(self.YEAR_MIN, self.YEAR_MAX)
         self.spin_year.setValue(2023)
-        year_row.addWidget(self.spin_year)
-        year_row.addStretch()
-        params_layout.addLayout(year_row)
+        self.spin_year.setMinimumHeight(30)
+        self.spin_year.setStyleSheet("QSpinBox { padding: 5px; border-radius: 4px; border: 1px solid #555; background: #333; color: white; }")
+        row_year.addWidget(lbl_year)
+        row_year.addStretch()
+        row_year.addWidget(self.spin_year)
+        grid_params.addLayout(row_year)
         
-        buffer_row = QHBoxLayout()
-        buffer_row.addWidget(QLabel("Buffer (km):"))
+        # Buffer
+        row_buffer = QHBoxLayout()
+        lbl_buffer = QLabel("Buffer (km)")
+        lbl_buffer.setStyleSheet("color: #E0E0E0;")
         self.spin_buffer = QDoubleSpinBox()
         self.spin_buffer.setRange(0.5, 100.0)
         self.spin_buffer.setValue(5.0)
-        buffer_row.addWidget(self.spin_buffer)
-        params_layout.addLayout(buffer_row)
+        self.spin_buffer.setMinimumHeight(30)
+        self.spin_buffer.setStyleSheet("QDoubleSpinBox { padding: 5px; border-radius: 4px; border: 1px solid #555; background: #333; color: white; }")
+        row_buffer.addWidget(lbl_buffer)
+        row_buffer.addStretch()
+        row_buffer.addWidget(self.spin_buffer)
+        grid_params.addLayout(row_buffer)
         
-        thresh_row = QHBoxLayout()
-        thresh_row.addWidget(QLabel("Threshold:"))
+        # Threshold
+        row_thresh = QHBoxLayout()
+        lbl_thresh = QLabel("Threshold")
+        lbl_thresh.setStyleSheet("color: #E0E0E0;")
         self.spin_threshold = QDoubleSpinBox()
         self.spin_threshold.setRange(0.1, 2.0)
         self.spin_threshold.setValue(0.5)
         self.spin_threshold.setSingleStep(0.1)
-        thresh_row.addWidget(self.spin_threshold)
-        params_layout.addLayout(thresh_row)
+        self.spin_threshold.setMinimumHeight(30)
+        self.spin_threshold.setStyleSheet("QDoubleSpinBox { padding: 5px; border-radius: 4px; border: 1px solid #555; background: #333; color: white; }")
+        row_thresh.addWidget(lbl_thresh)
+        row_thresh.addStretch()
+        row_thresh.addWidget(self.spin_threshold)
+        grid_params.addLayout(row_thresh)
         
-        res_row = QHBoxLayout()
-        res_row.addWidget(QLabel("Resolution (m):"))
+        params_layout.addLayout(grid_params)
+        main_layout.addWidget(params_group)
+        
+        # --- VISUALIZATION SECTION ---
+        vis_group = QGroupBox("VISUALIZATION")
+        vis_group.setStyleSheet("QGroupBox { font-weight: bold; color: #BBBBBB; margin-top: 10px; }")
+        vis_layout = QVBoxLayout(vis_group)
+        
+        # Colors row
+        colors_layout = QHBoxLayout()
+        colors_layout.setSpacing(15)
+        
+        for name, default, attr in [("High", "#00FF00", "color_similar"), 
+                                    ("Med", "#FFFF00", "color_neutral"), 
+                                    ("Low", "#FF0000", "color_different")]:
+            col_container = QVBoxLayout()
+            col_container.setSpacing(5)
+            lbl = QLabel(name)
+            lbl.setAlignment(Qt.AlignCenter)
+            lbl.setStyleSheet("font-size: 10px; color: #999;")
+            btn = QgsColorButton()
+            btn.setColor(QColor(default))
+            btn.setFixedSize(30, 30)
+            setattr(self, attr, btn)
+            
+            col_container.addWidget(btn)
+            col_container.addWidget(lbl)
+            colors_layout.addLayout(col_container)
+            
+        colors_layout.addStretch()
+        
+        # Toggle button next to colors
+        self.btn_toggle_similarity = QPushButton("👁️ Only Heatmap")
+        self.btn_toggle_similarity.setCheckable(True)
+        self.btn_toggle_similarity.setStyleSheet(self.STYLE_SECONDARY_BTN)
+        colors_layout.addWidget(self.btn_toggle_similarity)
+        
+        vis_layout.addLayout(colors_layout)
+        main_layout.addWidget(vis_group)
+
+        # Resolution (Hidden advanced)
         self.spin_resolution = QSpinBox()
         self.spin_resolution.setRange(10, 200)
         self.spin_resolution.setValue(30)
-        res_row.addWidget(self.spin_resolution)
-        params_layout.addLayout(res_row)
-        search_layout.addWidget(params_group)
+        self.spin_resolution.hide()
         
-        # Colors
-        styles_group = QGroupBox("Similarity Colors")
-        styles_group.setCheckable(True)
-        styles_group.setChecked(False)
-        styles_layout = QVBoxLayout(styles_group)
+        main_layout.addStretch()
         
-        for name, default, attr in [("Similar", "#00FF00", "color_similar"), 
-                                    ("Neutral", "#FFFF00", "color_neutral"), 
-                                    ("Different", "#FF0000", "color_different")]:
-            row = QHBoxLayout()
-            row.addWidget(QLabel(f"{name}:"))
-            btn = QgsColorButton()
-            btn.setColor(QColor(default))
-            setattr(self, attr, btn)
-            row.addWidget(btn)
-            row.addStretch()
-            styles_layout.addLayout(row)
-        search_layout.addWidget(styles_group)
+        # --- RUN BUTTON ---
+        self.btn_run = QPushButton("SEARCH SIMILARITY")
+        self.btn_run.setEnabled(False)
+        self.btn_run.setStyleSheet(self.STYLE_ACTION_PRIMARY)
+        self.btn_run.setCursor(Qt.PointingHandCursor)
+        self.btn_run.clicked.connect(self._on_run_clicked)
+        main_layout.addWidget(self.btn_run)
         
-        self.btn_toggle_similarity = QPushButton("Show Similarity Only")
-        self.btn_toggle_similarity.setCheckable(True)
-        self.btn_toggle_similarity.clicked.connect(self._on_toggle_similarity_clicked)
-        search_layout.addWidget(self.btn_toggle_similarity)
-        search_layout.addStretch()
-        
-        # === EXTRACT TAB (hidden) ===
-        extract_tab = QWidget()
-        extract_layout = QVBoxLayout(extract_tab)
-        extract_layout.setSpacing(12)
-        extract_layout.setContentsMargins(8, 8, 8, 8)
-        
-        extract_group = QGroupBox("Extraction Settings")
-        extract_group_layout = QVBoxLayout(extract_group)
-        
-        extract_color_row = QHBoxLayout()
-        extract_color_row.addWidget(QLabel("Extract Color:"))
-        
-        self.btn_pick_color = QToolButton()
-        self.btn_pick_color.setText("🖊️")
-        self.btn_pick_color.setCheckable(True)
-        self.btn_pick_color.setToolTip("Pick color from map")
-        self.btn_pick_color.clicked.connect(self._on_pick_color_clicked)
-        extract_color_row.addWidget(self.btn_pick_color)
-        
-        self.color_extract = QgsColorButton()
-        self.color_extract.setColor(QColor("#00FF00"))
-        extract_color_row.addWidget(self.color_extract)
-        extract_color_row.addStretch()
-        extract_group_layout.addLayout(extract_color_row)
-        
-        tol_row = QHBoxLayout()
-        tol_row.addWidget(QLabel("Tolerance:"))
-        self.slider_color_tolerance = QSlider(Qt.Horizontal)
-        self.slider_color_tolerance.setRange(1, 100)
-        self.slider_color_tolerance.setValue(30)
-        self.slider_color_tolerance.valueChanged.connect(self._on_tolerance_changed)
-        tol_row.addWidget(self.slider_color_tolerance)
-        self.label_tolerance = QLabel("30%")
-        tol_row.addWidget(self.label_tolerance)
-        extract_group_layout.addLayout(tol_row)
-        
-        layer_row = QHBoxLayout()
-        layer_row.addWidget(QLabel("Layer:"))
-        self.combo_similarity_layer = QComboBox()
-        layer_row.addWidget(self.combo_similarity_layer)
-        self.btn_refresh_layers = QPushButton("↻")
-        self.btn_refresh_layers.setMaximumWidth(30)
-        self.btn_refresh_layers.clicked.connect(self._refresh_similarity_layers)
-        layer_row.addWidget(self.btn_refresh_layers)
-        extract_group_layout.addLayout(layer_row)
-        
-        extract_layout.addWidget(extract_group)
-        
-        self.btn_extract = QPushButton("Extract Polygons")
-        self.btn_extract.setStyleSheet(self.STYLE_ACTION_PRIMARY)
-        self.btn_extract.setMinimumHeight(40)
-        self.btn_extract.clicked.connect(self._on_extract_clicked)
-        extract_layout.addWidget(self.btn_extract)
-        extract_layout.addStretch()
-        
-        # Status
-        self.label_status = QLabel("Status: Ready")
-        status_font = QFont()
-        status_font.setItalic(True)
-        self.label_status.setFont(status_font)
+        # Status Bar
+        self.label_status = QLabel("Ready")
+        self.label_status.setAlignment(Qt.AlignCenter)
+        self.label_status.setStyleSheet("color: #888; margin-top: 10px; font-size: 11px;")
         main_layout.addWidget(self.label_status)
         
-        self.color_picker_tool = ColorPickerTool(self.canvas)
-        self.color_picker_tool.color_picked.connect(self._on_color_picked_from_map)
+        # Initialize hidden extraction dependencies just in case
+        self.color_extract = QgsColorButton()
+        self.slider_color_tolerance = QSlider()
+        self.combo_similarity_layer = QComboBox()
     
     def _on_add_basemap_clicked(self):
         """Add Google Satellite basemap."""
