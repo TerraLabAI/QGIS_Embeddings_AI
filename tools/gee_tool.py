@@ -63,6 +63,13 @@ class GEESimilaritySearch:
             .filterDate(start_date, end_date) \
             .filterBounds(search_area)
         
+        # Check if we have any embeddings
+        if embeddings.size().getInfo() == 0:
+            raise RuntimeError(
+                f"No AlphaEarth embeddings found for this location and year ({year_start}). "
+                f"AlphaEarth coverage may be limited. Try a different location or year (2017-2023)."
+            )
+        
         embeddings_image = embeddings.mosaic()
         
         target_vector = embeddings_image.reduceRegion(
@@ -73,7 +80,14 @@ class GEESimilaritySearch:
             bestEffort=True  # Allow GEE to use approximations for speed
         )
         
-        target_image = target_vector.toImage(embeddings_image.bandNames())
+        # Verify we got embedding values
+        band_names = embeddings_image.bandNames().getInfo()
+        if not band_names or len(band_names) == 0:
+            raise RuntimeError(
+                "No embedding bands found. The reference location may be outside AlphaEarth coverage."
+            )
+        
+        target_image = target_vector.toImage(band_names)
         
         diff = embeddings_image.subtract(target_image)
         squared_diff = diff.pow(2)
@@ -115,3 +129,172 @@ class GEESimilaritySearch:
         result['shape'] = shape
         result['buffer_km'] = buffer_km
         return result
+
+
+def export_gee_image_to_file(ee_image, geometry, file_path, scale, vis_params, color_palette, export_format='geotiff'):
+    """Export GEE image to local file.
+    
+    Args:
+        ee_image: ee.Image to export
+        geometry: ee.Geometry defining the export region
+        file_path: Local file path to save to
+        scale: Resolution in meters
+        vis_params: Visualization parameters dict
+        color_palette: List of color hex codes
+        export_format: 'geotiff', 'cog', or 'png'
+    """
+    global ee
+    if ee is None:
+        import ee as _ee
+        ee = _ee
+    
+    # Apply visualization parameters with custom palette
+    vis_params_copy = vis_params.copy()
+    if color_palette:
+        vis_params_copy['palette'] = color_palette
+    
+    # For PNG, visualize first
+    if export_format == 'png':
+        image_to_export = ee_image.visualize(**vis_params_copy)
+        file_format = 'PNG'
+    else:
+        # For GeoTIFF, export raw data
+        image_to_export = ee_image
+        file_format = 'GeoTIFF'
+    
+    # Clip to geometry and get download URL
+    try:
+        url = image_to_export.clip(geometry).getDownloadURL({
+            'scale': scale,
+            'crs': 'EPSG:4326',
+            'fileFormat': file_format,
+            'region': geometry.getInfo()['coordinates'] if geometry.type().getInfo() == 'Polygon' else geometry.bounds().getInfo()['coordinates']
+        })
+        
+        # Download file
+        import requests
+        import time
+        
+        print(f"Downloading from GEE... (scale={scale}m)")
+        start_time = time.time()
+        
+        response = requests.get(url, timeout=120)  # 2 minute timeout
+        response.raise_for_status()
+        
+        # GEE often returns ZIP files, so we need to handle that
+        content_type = response.headers.get('Content-Type', '')
+        is_zip = 'zip' in content_type or response.content.startswith(b'PK')
+        
+        elapsed = time.time() - start_time
+        file_size_mb = len(response.content) / (1024 * 1024)
+        print(f"Downloaded {file_size_mb:.2f} MB in {elapsed:.1f} seconds")
+        
+        if is_zip:
+            print("Response is a ZIP file, extracting...")
+            import zipfile
+            import io
+            import tempfile
+            import os
+            
+            # Extract ZIP content
+            zip_buffer = io.BytesIO(response.content)
+            with zipfile.ZipFile(zip_buffer) as zip_file:
+                # Find the first .tif or .png file in the ZIP
+                target_ext = '.tif' if export_format in ['geotiff', 'cog'] else '.png'
+                tif_files = [name for name in zip_file.namelist() if name.endswith(target_ext)]
+                
+                if not tif_files:
+                    raise RuntimeError(f"No {target_ext} file found in downloaded ZIP")
+                
+                # Extract to a temporary location first
+                temp_dir = tempfile.mkdtemp()
+                extracted_file = zip_file.extract(tif_files[0], temp_dir)
+                
+                # Read the extracted file and write to final destination
+                with open(extracted_file, 'rb') as src:
+                    with open(file_path, 'wb') as dst:
+                        dst.write(src.read())
+                
+                # Clean up temp directory
+                import shutil
+                shutil.rmtree(temp_dir)
+                
+            print(f"Extracted {target_ext} file from ZIP to {file_path}")
+        else:
+            # Direct file, write as-is
+            with open(file_path, 'wb') as f:
+                f.write(response.content)
+            print(f"Saved file directly to {file_path}")
+        
+        # For COG format, convert using GDAL
+        if export_format == 'cog':
+            _convert_to_cog(file_path)
+        
+        # For PNG, create world file
+        if export_format == 'png':
+            _create_world_file(file_path, geometry)
+        
+        return file_path
+        
+    except Exception as e:
+        raise RuntimeError(f"GEE export failed: {str(e)}")
+
+
+def _convert_to_cog(file_path):
+    """Convert GeoTIFF to Cloud Optimized GeoTIFF."""
+    try:
+        from osgeo import gdal
+        import tempfile
+        import os
+        
+        # Create temp file
+        temp_path = file_path.replace('.tif', '_temp.tif')
+        os.rename(file_path, temp_path)
+        
+        # Convert to COG
+        gdal.Translate(
+            file_path,
+            temp_path,
+            creationOptions=['TILED=YES', 'COMPRESS=LZW', 'COPY_SRC_OVERVIEWS=YES']
+        )
+        
+        # Clean up
+        os.remove(temp_path)
+        print("Converted to Cloud Optimized GeoTIFF")
+        
+    except Exception as e:
+        print(f"COG conversion failed, keeping as regular GeoTIFF: {e}")
+        # If conversion fails, just rename temp back
+        if os.path.exists(temp_path):
+            os.rename(temp_path, file_path)
+
+
+def _create_world_file(png_path, geometry):
+    """Create world file (.pgw) for PNG."""
+    try:
+        bounds = geometry.bounds().getInfo()['coordinates'][0]
+        min_x = min(p[0] for p in bounds)
+        max_x = max(p[0] for p in bounds)
+        min_y = min(p[1] for p in bounds)
+        max_y = max(p[1] for p in bounds)
+        
+        # Assume standard 512x512 image from GEE
+        width = 512
+        height = 512
+        
+        pixel_size_x = (max_x - min_x) / width
+        pixel_size_y = (max_y - min_y) / height
+        
+        world_file = png_path.replace('.png', '.pgw')
+        with open(world_file, 'w') as f:
+            f.write(f"{pixel_size_x}\n")     # Pixel size X
+            f.write("0.0\n")                 # Rotation X
+            f.write("0.0\n")                 # Rotation Y  
+            f.write(f"-{pixel_size_y}\n")   # Pixel size Y (negative)
+            f.write(f"{min_x}\n")            # Upper left X
+            f.write(f"{max_y}\n")            # Upper left Y
+        
+        print(f"Created world file: {world_file}")
+        
+    except Exception as e:
+        print(f"World file creation failed: {e}")

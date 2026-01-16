@@ -77,6 +77,18 @@ class SimilaritySearchWidget(QDockWidget):
         QPushButton:disabled { background-color: #3a3a3a; color: #888888; }
     """
     
+    STYLE_ACTION_SECONDARY = """
+        QPushButton {
+            background-color: #4a5a6a; 
+            color: white; 
+            font-weight: normal;
+            padding: 10px; 
+            border-radius: 4px;
+        }
+        QPushButton:hover { background-color: #5a6a7a; }
+        QPushButton:disabled { background-color: #2a2a2a; color: #666666; }
+    """
+    
     STYLE_BASEMAP_BTN = """
         QPushButton {
             background-color: #5a6a7a; color: white; font-weight: bold;
@@ -107,6 +119,11 @@ class SimilaritySearchWidget(QDockWidget):
         self.point_tool = None
         self.bbox_tool = None
         self.polygon_tool = None
+        
+        # Track last search result for export
+        self.last_search_result = None
+        self.last_search_name = None
+        self.last_search_params = None
         
         self.setAllowedAreas(Qt.LeftDockWidgetArea | Qt.RightDockWidgetArea)
         self.setMinimumWidth(320)
@@ -192,13 +209,25 @@ class SimilaritySearchWidget(QDockWidget):
         self.btn_remove = QPushButton("Remove Selected")
         self.btn_remove.hide()
         
-        # Run Button
+        # Run Buttons Row
+        buttons_row = QHBoxLayout()
+        
         self.btn_run = QPushButton("Search Similarity")
         self.btn_run.setEnabled(False)
         self.btn_run.setStyleSheet(self.STYLE_ACTION_PRIMARY)
         self.btn_run.setMinimumHeight(40)
         self.btn_run.clicked.connect(self._on_run_clicked)
-        search_layout.addWidget(self.btn_run)
+        buttons_row.addWidget(self.btn_run)
+        
+        self.btn_export = QPushButton("Export Results")
+        self.btn_export.setEnabled(False)
+        self.btn_export.setStyleSheet(self.STYLE_ACTION_SECONDARY)
+        self.btn_export.setMinimumHeight(40)
+        self.btn_export.setToolTip("Download similarity results as local file")
+        self.btn_export.clicked.connect(self._on_export_clicked)
+        buttons_row.addWidget(self.btn_export)
+        
+        search_layout.addLayout(buttons_row)
         
         # Parameters
         params_group = QGroupBox("Parameters")
@@ -627,9 +656,20 @@ class SimilaritySearchWidget(QDockWidget):
                     max_threshold=max_threshold
                 )
                 
+                # Store last result for export
+                self.last_search_result = result
+                self.last_search_name = item_data['geom_name']
+                self.last_search_params = {
+                    'buffer_km': buffer_km,
+                    'resolution': resolution,
+                    'year': year_label,
+                    'color_palette': color_palette
+                }
+                
                 self._add_results_to_map(result, item_data['geom_name'], item_data['layer_id'], year_label, resolution, color_palette)
             
             self.btn_run.setEnabled(True)
+            self.btn_export.setEnabled(True)  # Enable export after successful search
             self._set_status(f"Search completed ({len(items_to_process)} geometries)")
             
         except Exception as e:
@@ -843,6 +883,173 @@ class SimilaritySearchWidget(QDockWidget):
             self._set_status(f"Error: {str(e)}")
             import traceback
             QgsMessageLog.logMessage(traceback.format_exc(), "QGIS Embeddings AI", Qgis.Critical)
+    
+    def _on_export_clicked(self):
+        """Open export dialog and download results."""
+        if self.last_search_result is None:
+            self.iface.messageBar().pushWarning(
+                "QGIS Embeddings AI", 
+                "No search results to export. Run a search first."
+            )
+            return
+        
+        # Create export dialog
+        from qgis.PyQt.QtWidgets import QDialog, QVBoxLayout, QDialogButtonBox, QComboBox, QLabel, QFileDialog
+        
+        dialog = QDialog(self)
+        dialog.setWindowTitle("Export Similarity Results")
+        dialog.setMinimumWidth(400)
+        layout = QVBoxLayout(dialog)
+        
+        # Info label
+        info_text = f"Export results for: {self.last_search_name}\n"
+        info_text += f"Buffer: {self.last_search_params['buffer_km']} km, Resolution: {self.last_search_params['resolution']} m"
+        info_label = QLabel(info_text)
+        layout.addWidget(info_label)
+        
+        # Format selector
+        layout.addWidget(QLabel("\nExport Format:"))
+        format_combo = QComboBox()
+        format_combo.addItem("GeoTIFF (Recommended - Full Quality)", "geotiff")
+        format_combo.addItem("Cloud Optimized GeoTIFF (Web-Friendly)", "cog")
+        format_combo.addItem("PNG + World File (Lightweight)", "png")
+        layout.addWidget(format_combo)
+        
+        # Description
+        desc_label = QLabel("GeoTIFF: Industry standard, compatible with all GIS software")
+        desc_label.setStyleSheet("color: #888; font-size: 11px;")
+        layout.addWidget(desc_label)
+        
+        # Buttons
+        buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        buttons.accepted.connect(dialog.accept)
+        buttons.rejected.connect(dialog.reject)
+        layout.addWidget(buttons)
+        
+        if dialog.exec_() == QDialog.Accepted:
+            export_format = format_combo.currentData()
+            self._export_to_file(export_format)
+    
+    def _export_to_file(self, export_format):
+        """Export results to file with format choice."""
+        # Get file extension
+        extensions = {
+            'geotiff': 'GeoTIFF Files (*.tif)',
+            'cog': 'GeoTIFF Files (*.tif)', 
+            'png': 'PNG Files (*.png)'
+        }
+        
+        # Create default filename
+        default_filename = f"similarity_{self.last_search_name}_{self.last_search_params['year']}"
+        if export_format == 'png':
+            default_filename += '.png'
+        else:
+            default_filename += '.tif'
+        
+        # Use user's home directory as starting point
+        import os
+        home_dir = os.path.expanduser('~')
+        default_path = os.path.join(home_dir, 'Documents', default_filename)
+        
+        # File dialog
+        from qgis.PyQt.QtWidgets import QFileDialog
+        file_path, _ = QFileDialog.getSaveFileName(
+            self,
+            "Save Similarity Results",
+            default_path,  # Full path with directory
+            extensions[export_format]
+        )
+        
+        if not file_path:
+            return
+        
+        self._set_status("Exporting... (this may take 10-30 seconds)")
+        self.btn_export.setEnabled(False)
+        self.iface.mainWindow().repaint()  # Force UI update
+        
+        try:
+            # Import export function
+            from .gee_tool import export_gee_image_to_file
+            
+            # Export the similarity image
+            result = self.last_search_result
+            params = self.last_search_params
+            
+            export_gee_image_to_file(
+                ee_image=result['similarity_image'],
+                geometry=result['search_area'],
+                file_path=file_path,
+                scale=params['resolution'],
+                vis_params=result['vis_params'],
+                color_palette=params['color_palette'],
+                export_format=export_format
+            )
+            
+            self._set_status(f"Exported successfully!")
+            self.iface.messageBar().pushSuccess(
+                "QGIS Embeddings AI",
+                f"Results exported to {file_path}"
+            )
+            
+            # Load exported file into QGIS
+            self._load_exported_file(file_path)
+            
+        except Exception as e:
+            self.iface.messageBar().pushCritical(
+                "QGIS Embeddings AI",
+                f"Export failed: {str(e)}"
+            )
+            self._set_status(f"Export error: {str(e)}")
+            import traceback
+            QgsMessageLog.logMessage(traceback.format_exc(), "QGIS Embeddings AI", Qgis.Critical)
+        finally:
+            self.btn_export.setEnabled(True)
+    
+    def _load_exported_file(self, file_path):
+        """Load exported file as raster layer in QGIS."""
+        import os
+        
+        # Verify file exists and has content
+        if not os.path.exists(file_path):
+            self.iface.messageBar().pushWarning(
+                "QGIS Embeddings AI",
+                f"Exported file not found: {file_path}"
+            )
+            return
+        
+        file_size = os.path.getsize(file_path)
+        if file_size == 0:
+            self.iface.messageBar().pushWarning(
+                "QGIS Embeddings AI",
+                f"Exported file is empty (0 bytes). Export may have failed."
+            )
+            return
+        
+        print(f"Loading exported file: {file_path} ({file_size / 1024:.1f} KB)")
+        
+        layer_name = f"[Exported] {self.last_search_name} ({self.last_search_params['year']})"
+        
+        # Try to load as raster
+        layer = QgsRasterLayer(file_path, layer_name)
+        
+        if layer.isValid():
+            QgsProject.instance().addMapLayer(layer)
+            self.canvas.setExtent(layer.extent())
+            self.canvas.refresh()
+            self._set_status(f"Loaded: {layer_name}")
+            print(f"Successfully loaded layer: {layer_name}")
+        else:
+            # Get detailed error
+            error = layer.error().message() if layer.error() else "Unknown error"
+            self.iface.messageBar().pushCritical(
+                "QGIS Embeddings AI",
+                f"Could not load exported file as raster layer. Error: {error}"
+            )
+            print(f"Failed to load raster. Error: {error}")
+            print(f"File path: {file_path}")
+            print(f"File exists: {os.path.exists(file_path)}")
+            print(f"File size: {file_size} bytes")
+
     
     def closeEvent(self, event):
         self._deactivate_tool()
