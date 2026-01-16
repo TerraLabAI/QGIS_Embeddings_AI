@@ -1020,9 +1020,14 @@ class SimilaritySearchWidget(QDockWidget):
         layer = QgsRasterLayer(file_path, layer_name)
         
         if layer.isValid():
+            # GeoTIFF is already visualized with colors from GEE, no need to apply color ramp
             QgsProject.instance().addMapLayer(layer)
+            
+            # Zoom to layer with appropriate scale (not too zoomed in)
             self.canvas.setExtent(layer.extent())
+            self.canvas.zoomScale(50000)  # Fixed scale for consistent zoom
             self.canvas.refresh()
+            
             self._set_status(f"Loaded: {layer_name}")
             print(f"Successfully loaded layer: {layer_name}")
         else:
