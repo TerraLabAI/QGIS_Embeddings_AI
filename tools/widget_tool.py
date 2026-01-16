@@ -1020,7 +1020,46 @@ class SimilaritySearchWidget(QDockWidget):
         layer = QgsRasterLayer(file_path, layer_name)
         
         if layer.isValid():
-            # GeoTIFF is already visualized with colors from GEE, no need to apply color ramp
+            print(f"Layer loaded: {layer.bandCount()} bands")
+            
+            # If single-band grayscale, apply color ramp (GEE exported as grayscale)
+            if layer.bandCount() == 1:
+                print("Applying color ramp to single-band raster")
+                from qgis.core import QgsColorRampShader, QgsRasterShader, QgsSingleBandPseudoColorRenderer
+                
+                # Get colors from last search params
+                colors = self.last_search_params.get('color_palette', ['#00FF00', '#FFFF00', '#FF0000'])
+                
+                # Get actual min/max from the raster
+                stats = layer.dataProvider().bandStatistics(1)
+                min_val = stats.minimumValue
+                max_val = stats.maximumValue
+                
+                print(f"Raster values: min={min_val}, max={max_val}")
+                
+                # Create color ramp shader
+                shader = QgsRasterShader()
+                ramp_shader = QgsColorRampShader()
+                ramp_shader.setColorRampType(QgsColorRampShader.Interpolated)
+                
+                # Create color ramp items based on actual data range
+                mid_val = (min_val + max_val) / 2
+                items = [
+                    QgsColorRampShader.ColorRampItem(min_val, QColor(colors[0]), 'Similar'),
+                    QgsColorRampShader.ColorRampItem(mid_val, QColor(colors[1]), 'Medium'),
+                    QgsColorRampShader.ColorRampItem(max_val, QColor(colors[2]), 'Different')
+                ]
+                ramp_shader.setColorRampItemList(items)
+                shader.setRasterShaderFunction(ramp_shader)
+                
+                # Apply renderer
+                renderer = QgsSingleBandPseudoColorRenderer(layer.dataProvider(), 1, shader)
+                layer.setRenderer(renderer)
+                layer.triggerRepaint()
+                print("Color ramp applied successfully")
+            else:
+                print(f"Multi-band raster ({layer.bandCount()} bands), using default rendering")
+            
             QgsProject.instance().addMapLayer(layer)
             
             # Zoom to layer with appropriate scale (not too zoomed in)
