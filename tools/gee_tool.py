@@ -68,8 +68,9 @@ class GEESimilaritySearch:
         target_vector = embeddings_image.reduceRegion(
             reducer=ee.Reducer.mean(),
             geometry=reference_geom,
-            scale=10,
-            maxPixels=1e9
+            scale=30,  # Optimized: 30m instead of 10m (9x fewer pixels)
+            maxPixels=1e9,
+            bestEffort=True  # Allow GEE to use approximations for speed
         )
         
         target_image = target_vector.toImage(embeddings_image.bandNames())

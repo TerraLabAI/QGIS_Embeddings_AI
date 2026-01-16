@@ -217,7 +217,7 @@ class SimilaritySearchWidget(QDockWidget):
         buffer_row.addWidget(QLabel("Buffer (km):"))
         self.spin_buffer = QDoubleSpinBox()
         self.spin_buffer.setRange(0.5, 100.0)
-        self.spin_buffer.setValue(5.0)
+        self.spin_buffer.setValue(2.0)  # Optimized default: 2km instead of 5km
         self.spin_buffer.setSingleStep(0.1)  # More precise increments
         buffer_row.addWidget(self.spin_buffer)
         params_layout.addLayout(buffer_row)
@@ -235,7 +235,7 @@ class SimilaritySearchWidget(QDockWidget):
         res_row.addWidget(QLabel("Resolution (m):"))
         self.spin_resolution = QSpinBox()
         self.spin_resolution.setRange(10, 200)
-        self.spin_resolution.setValue(30)
+        self.spin_resolution.setValue(60)  # Optimized default: 60m instead of 30m
         res_row.addWidget(self.spin_resolution)
         params_layout.addLayout(res_row)
         search_layout.addWidget(params_group)
